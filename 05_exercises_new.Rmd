@@ -1,6 +1,6 @@
 ---
 title: 'Weekly Exercises #5'
-author: "Your name here"
+author: "Audrey Smyczek"
 output: 
   html_document:
     keep_md: TRUE
@@ -25,6 +25,7 @@ library(maps)          # for map data
 library(ggmap)         # for mapping points on maps
 library(gplots)        # for col2hex() function
 library(RColorBrewer)  # for color palettes
+library(viridis)
 library(sf)            # for working with spatial data
 library(leaflet)       # for highly customizable mapping
 library(ggthemes)      # for more themes (including theme_map())
@@ -37,6 +38,12 @@ theme_set(theme_minimal())
 ```
 
 ```{r data}
+# DC Train Data
+data_site <- 
+  "https://www.macalester.edu/~dshuman1/data/112/2014-Q4-Trips-History-Data.rds" 
+Trips <- readRDS(gzcon(url(data_site)))
+Stations<-read_csv("http://www.macalester.edu/~dshuman1/data/112/DC-Stations.csv")
+
 # SNCF Train data
 small_trains <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-26/small_trains.csv") 
 
@@ -59,19 +66,10 @@ covid19 <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/mas
 
 ```
 
-## Put your homework on GitHub!
-
-Go [here](https://github.com/llendway/github_for_collaboration/blob/master/github_for_collaboration.md) or to previous homework to remind yourself how to get set up. 
-
-Once your repository is created, you should always open your **project** rather than just opening an .Rmd file. You can do that by either clicking on the .Rproj file in your repository folder on your computer. Or, by going to the upper right hand corner in R Studio and clicking the arrow next to where it says Project: (None). You should see your project come up in that list if you've used it recently. You could also go to File --> Open Project and navigate to your .Rproj file. 
 
 ## Instructions
 
-* Put your name at the top of the document. 
-
 * **For ALL graphs, you should include appropriate labels and alt text.** 
-
-* Feel free to change the default theme, which I currently have set to `theme_minimal()`. 
 
 * Use good coding practice. Read the short sections on good code with [pipes](https://style.tidyverse.org/pipes.html) and [ggplot2](https://style.tidyverse.org/ggplot2.html). **This is part of your grade!**
 
@@ -83,10 +81,73 @@ Once your repository is created, you should always open your **project** rather 
 
   1. Choose 2 graphs you have created for ANY assignment in this class and add interactivity using the `ggplotly()` function.
   
+```{r, fig.alt= "An interactive graph that shows the number of harvests per lettuce variety. Lettuce Mixture has the largest number of harvests with 29 and the other four varieties vary in number from 27 with the Farmer's Market Blend to 1 harvest with Mustard Greens."}
+lettuce_harvest <- garden_harvest %>% 
+  filter(vegetable == "lettuce") %>% 
+  group_by(variety) %>% 
+  ggplot()+
+    geom_bar(aes(y = variety), 
+             fill = "darkgreen")+
+  labs(title = "Number of Harvests per Lettuce Variety",
+       x = "Number of Harvests",
+       y = "")
 
+ggplotly(lettuce_harvest)
+```
+
+```{r, fig.alt= "An interactive graph with the geographic plotting of train stations in the Washington D.C. area with the points colored by number of departures for each station."}
+Small_Trips <- Trips %>% 
+  group_by(`sstation`) %>% 
+  summarise(num_departures = n()) %>% 
+  ungroup()
+
+small_trips_graph <- Small_Trips %>% 
+  left_join(Stations,
+            by = c("sstation"="name")) %>% 
+  select(`sstation`, `lat`, `long`, `num_departures`) %>% 
+  ggplot()+
+  geom_point(mapping = aes(x = `lat`, 
+                           y = `long`,
+                           color = `num_departures`))+
+    labs(title = "Map of Stations based on Longitude and Latitude Positioning",
+       x = "Longitude",
+       y = "Latitude")
+
+ggplotly(small_trips_graph)
+
+```
   
   2. Use animation to tell an interesting story with the `small_trains` dataset that contains data from the SNCF (National Society of French Railways). These are Tidy Tuesday data! Read more about it [here](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-02-26).
 
+Month 4: Paris Nord station has a sliver of a different color at the end! Why?
+
+```{r}
+num_trips_depart <- small_trains %>% 
+  select(year, month, service, departure_station, total_num_trips) %>% 
+  filter(year == 2016,
+         service == "National",
+         departure_station %in% c("MARSEILLE ST CHARLES", "LILLE", "PARIS NORD", "TOURS", "RENNES", "PARIS EST")) %>%
+  group_by(departure_station, month) %>% 
+  mutate(total_num_trips = sum(total_num_trips)) %>% 
+  distinct() %>% 
+  ggplot(aes(x = total_num_trips, y = reorder(departure_station, total_num_trips)))+
+  geom_col(aes(fill = total_num_trips))+
+  labs(title = "Number of Trips from Departure Stations",
+       subtitle = "Year: 2016, Month: {closest_state}",
+       x = "Number of Trips",
+       y = "")+
+  theme(legend.position = "none")+
+  scale_fill_viridis_c(option = "plasma")+
+  transition_states(month)
+
+anim_save("num_trips_depart.gif",
+          animation = num_trips_depart)
+```
+
+
+```{r, fig.alt= "Animated Graph that shows the number of trips from certain departure stations in France. The animation shows the different months of 2016, the bars are colored by number of trips which the Paris Nord and Paris Est stations having the largest values of roughly 8000."}
+knitr::include_graphics("num_trips_depart.gif")
+```
 
 ## Garden data
 
