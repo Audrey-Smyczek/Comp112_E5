@@ -165,7 +165,14 @@ garden_harvest %>%
   ungroup() %>% 
   complete(variety, 
            date, 
-           fill = list(daily_harvest_lb = 0))
+           fill = list(daily_harvest_lb = 0)) %>% 
+  group_by(variety) %>% 
+  mutate(cum_harvest_lb = cumsum(daily_harvest_lb)) %>% 
+  ggplot(aes(x=date, y=cum_harvest_lb, fill = fct_reorder(variety, cum_harvest_lb, max)))+
+  geom_area()+
+  geom_text(aes(label = variety), position = "stack") +
+  transition_reveal(date)+
+  theme(legend.position = "none")
   
 ```
 
@@ -186,13 +193,13 @@ garden_harvest %>%
   
 I prefer this map to not be static because I like seeing the way that the timing affects how the map is drawn, it makes it more realistic and shows the time in a way that would not be possible with a static map. It would be possible to color by speed but then elevation would not be accounted for.
 
-```{r}
+```{r, eval=FALSE}
 mallorca_map <- get_stamenmap(
     bbox = c(left = 2.3084, bottom = 39.5448, right = 2.6826, top = 39.7156),
     maptype = "terrain",
     zoom = 12)
 
-ggmap(mallorca_map)+
+anim_biking_mallorca <- ggmap(mallorca_map)+
   geom_point(data = mallorca_bike_day7,
             aes(x = lon, y = lat),
             color = "red",
@@ -209,8 +216,15 @@ ggmap(mallorca_map)+
   theme(legend.background = element_blank(),
         legend.position = c(0.02, 0.6)) +
   transition_reveal(time)
+
+anim_save("anim_biking_mallorca.gif",
+          animation = anim_biking_mallorca)
 ```
   
+  
+```{r, fig.alt= "An animated map that shows a path taken around Western Mallorca by bike with the path colored by elevation."}
+knitr::include_graphics("anim_biking_mallorca.gif")
+```
   
   5. In this exercise, you get to meet Lisa's sister, Heather! She is a proud Mac grad, currently works as a Data Scientist where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files putting them in swim, bike, run order (HINT: `bind_rows()`), 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
   
@@ -237,7 +251,7 @@ census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_ce
 states_map <- map_data("state")
 ```
 
-## Your first `shiny` app (for next week!)
+## Your first `shiny` app
 
   7. This app will also use the COVID data. Make sure you load that data and all the libraries you need in the `app.R` file you create. You should create a new project for the app, separate from the homework project. Below, you will post a link to the app that you publish on shinyapps.io. You will create an app to compare states' daily number of COVID cases per 100,000 over time. The x-axis will be date. You will have an input box where the user can choose which states to compare (`selectInput()`), a slider where the user can choose the date range, and a submit button to click once the user has chosen all states they're interested in comparing. The graph should display a different line for each state, with labels either on the graph or in a legend. Color can be used if needed. 
   
