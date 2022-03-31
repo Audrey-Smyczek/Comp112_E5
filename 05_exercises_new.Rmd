@@ -157,8 +157,8 @@ knitr::include_graphics("num_trips_depart.gif")
   * Use the data you just made to create a static cumulative harvest area plot, with the areas filled with different colors for each variety and arranged (HINT: `fct_reorder()`) from most to least harvested weights (most on the bottom).  
   * Add animation to reveal the plot over date. Instead of having a legend, place the variety names directly on the graph (refer back to the tutorial for how to do this).
 
-```{r}
-garden_harvest %>% 
+```{r, eval=FALSE}
+tomato_cumsum_graph <- garden_harvest %>% 
   filter(vegetable == "tomatoes") %>% 
   group_by(date, variety) %>% 
   summarize(daily_harvest_lb = sum(weight)*0.00220462) %>% 
@@ -174,8 +174,14 @@ garden_harvest %>%
   transition_reveal(date)+
   theme(legend.position = "none")
   
+anim_save("tomato_cumsum_graph.gif",
+          animation = tomato_cumsum_graph)
 ```
 
+
+```{r, fig.alt= ""}
+knitr::include_graphics("tomato_cumsum_graph.gif")
+```
 
 ## Maps, animation, and movement!
 
@@ -186,7 +192,7 @@ garden_harvest %>%
   * Show path up until the current point.  
   * Color the path according to elevation.  
   * Show the time in the subtitle.  
-  * CHALLENGE: use the `ggimage` package and `geom_image` to add a bike image instead of a red point. You can use [this](https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png) image. See [here](https://goodekat.github.io/presentations/2019-isugg-gganimate-spooky/slides.html#35) for an example. 
+  * CHALLENGE: use the `ggimage` package and `geom_image` to add a bike image instead of a red point. You can use [this](https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png) image. See [here](https://goodekat.github.io/presentations/2019-isugg-gganimate-spooky/slides.html#35) for an example.
   * Add something of your own! And comment on if you prefer this to the static map and why or why not.
   
   ADD SOMETHING OF MY OWN
@@ -203,10 +209,10 @@ anim_biking_mallorca <- ggmap(mallorca_map)+
   geom_point(data = mallorca_bike_day7,
             aes(x = lon, y = lat),
             color = "red",
-            size = .7) +
+            size = 1.5) +
   geom_path(data = mallorca_bike_day7, 
              aes(x = lon, y = lat, color = ele),
-             size = .8) +
+             size = 1) +
   scale_color_viridis_c("Elevation", option = "plasma") +
   labs(title = "Map of Biking Data in Mallorca",
        subtitle = "Time : {frame_along}",
@@ -228,8 +234,38 @@ knitr::include_graphics("anim_biking_mallorca.gif")
   
   5. In this exercise, you get to meet Lisa's sister, Heather! She is a proud Mac grad, currently works as a Data Scientist where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files putting them in swim, bike, run order (HINT: `bind_rows()`), 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
   
-```{r}
+```{r, eval=FALSE}
+swim_bike_run <- panama_swim %>% 
+  bind_rows(panama_bike, panama_run)
 
+panama_map <- get_stamenmap(
+    bbox = c(left = -79.6022, bottom = 8.9007, right = -79.4550, top = 9.0102),
+    maptype = "terrain",
+    zoom = 13)
+
+ironman_map <- ggmap(panama_map)+
+  geom_point(data = swim_bike_run,
+            aes(x = lon, y = lat, color = event),
+            size = 2) +
+  geom_path(data = swim_bike_run, 
+             aes(x = lon, y = lat, color = event),
+             size = .8) +
+  scale_color_viridis_d("Event", option = "plasma") +
+  labs(title = "Map of Ironman 70.3 Pan Am in Panama",
+       subtitle = "Time : {frame_along}",
+       x = "",
+       y = "")+
+  theme_map()+
+  theme(legend.background = element_blank(),
+        legend.position = c(0.86, 0.1)) +
+  transition_reveal(time)
+
+anim_save("ironman_map.gif",
+          animation = ironman_map)
+```
+  
+```{r, fig.alt= ""}
+knitr::include_graphics("ironman_map.gif")
 ```
   
 ## COVID-19 data
@@ -241,15 +277,50 @@ knitr::include_graphics("anim_biking_mallorca.gif")
   * Use the `animate()` function to make the animation 200 frames instead of the default 100 and to pause for 10 frames on the end frame.   
   * Use `group = date` in `aes()`.   
   * Comment on what you see.  
+  
+The map only shows some of the states in the first 2 months, this is because there were no Covid-19 cases recorded in those states yet. However as time goes on all the states show up and then they are colored based on the number of cumulative cases for the state. The states with the highest population, New York and California, had a much larger number of cases compared to the rest of the country.
 
-```{r}
+```{r, eval=FALSE}
 census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_census_2018_state_pop_est.csv?dl=1") %>% 
   separate(state, into = c("dot","state"), extra = "merge") %>% 
   select(-dot) %>% 
   mutate(state = str_to_lower(state))
 
 states_map <- map_data("state")
+
+cum_covid <- covid19 %>% 
+  group_by(`state`, `date`) %>% 
+  mutate(state = str_to_lower(`state`),
+         day_of_month = day(date)) %>% 
+  filter(day_of_month == 15 ) %>% 
+  distinct() %>% 
+  ungroup()
+
+covid_map <- cum_covid %>% 
+  ggplot()+
+  geom_map(map = states_map,
+            aes(map_id = state,
+                fill = cases,
+                group = date)) +
+  scale_fill_distiller(type = "div", palette = "PuBuGn")+
+  expand_limits(x = states_map$long, y = states_map$lat)+
+  theme_map()+
+  labs(title = "Cumulative Number of COVID-19 Cases by State",
+       subtitle = "Date: {closest_state}")+
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))+
+  transition_states(date)
+
+anim_covid_map <- animate(covid_map, nframes = 200, end_pause = 10)
+
+anim_save("anim_covid_map.gif",
+          animation = anim_covid_map)
 ```
+
+```{r, fig.alt=""}
+knitr::include_graphics("anim_covid_map.gif")
+```
+
 
 ## Your first `shiny` app
 
